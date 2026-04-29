@@ -185,9 +185,8 @@
   document.getElementById('btn-step').addEventListener('click', step);
   document.getElementById('btn-reset').addEventListener('click', reset);
 
-  function size() { canvas.width = canvas.clientWidth; canvas.height = Math.max(400, canvas.clientWidth * 0.55); draw(); }
-  size(); window.addEventListener('load', size); window.addEventListener('resize', size);
-  setTimeout(function() { requestAnimationFrame(function() { size(); }); }, 50);
+  canvas.width = 800; canvas.height = 450; draw();
+  window.addEventListener('resize', function() { canvas.width = canvas.clientWidth || 600; canvas.height = Math.max(400, (canvas.clientWidth || 600) * 0.55); draw(); });
   reset();
 })();
 </script>

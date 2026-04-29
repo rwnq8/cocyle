@@ -7,131 +7,147 @@
 <meta name="description" content="Interactive: see the many-to-one Monna projection from ultrametric tree to Archimedean line.">
 <link rel="stylesheet" href="../css/style.css">
 <style>
-  .demo-wrap { display: flex; height: 75vh; border: 1px solid var(--border); margin: 1rem 0; }
-  .demo-panel { flex: 1; position: relative; border-right: 1px solid var(--border); }
-  .demo-panel:last-child { border-right: none; }
-  canvas { display: block; width: 100%; height: 100%; }
-  .demo-label { position: absolute; top: 12px; left: 16px; font-family: var(--sans); font-size: 0.72rem; font-weight: 600; color: var(--muted); background: rgba(253,252,250,0.85); padding: 3px 8px; border-radius: 3px; }
-  .demo-info { position: absolute; bottom: 12px; left: 16px; font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
-  @media (max-width: 768px) { .demo-wrap { flex-direction: column; height: auto; } .demo-panel { height: 350px; border-right: none; border-bottom: 1px solid var(--border); } }
+  body { margin: 0; background: #fdfcfa; }
+  .wrap { display: flex; width: 100vw; height: 85vh; }
+  .panel { flex: 1; position: relative; border-right: 1px solid #e0ddd5; overflow: hidden; }
+  .panel:last-child { border-right: none; }
+  canvas { display: block; }
+  .label { position: absolute; top: 12px; left: 16px; font-family: "Segoe UI", Arial, sans-serif; font-size: 13px; font-weight: 600; color: #5e5e5e; background: rgba(253,252,250,0.85); padding: 4px 10px; border-radius: 4px; }
+  .info { position: absolute; bottom: 12px; left: 16px; font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px; color: #5e5e5e; }
+  .back { padding: 8px 16px; font-family: "Segoe UI", Arial, sans-serif; font-size: 14px; }
+  .back a { color: #8b4513; text-decoration: none; }
+  @media (max-width: 768px) { .wrap { flex-direction: column; height: auto; } .panel { height: 300px; border-right: none; border-bottom: 1px solid #e0ddd5; } }
 </style>
 </head>
 <body>
-<div class="container" style="max-width:100%;padding:0.5rem;">
+<div class="back"><a href="../index.html">← The Branch and the Shadow</a></div>
 
-<div class="site-header" style="margin:0 1.5rem 0.5rem;">
-  <span class="site-title"><a href="../index.html">← The Branch and the Shadow</a></span>
-  <span style="font-family:var(--sans);font-size:0.7rem;color:var(--muted);">Monna Lens Demo</span>
-</div>
-
-<div class="demo-wrap">
-  <div class="demo-panel">
+<div class="wrap">
+  <div class="panel" id="tree-panel">
     <canvas id="tree-canvas"></canvas>
-    <div class="demo-label">Ultrametric Tree (Bruhat–Tits, p=2, depth=6)</div>
-    <div class="demo-info" id="tree-info">64 leaves</div>
+    <div class="label">Ultrametric Tree (p=2, depth=6, 64 leaves)</div>
+    <div class="info" id="tree-info">64 leaves</div>
   </div>
-  <div class="demo-panel">
+  <div class="panel" id="line-panel">
     <canvas id="line-canvas"></canvas>
-    <div class="demo-label">Monna Projection → Archimedean Line [0, 1]</div>
-    <div class="demo-info" id="line-info">Hover over the line</div>
+    <div class="label">Monna Projection → [0, 1] — hover here</div>
+    <div class="info" id="line-info">Hover over the line</div>
   </div>
 </div>
 
-<p style="margin:0.5rem 1.5rem 1rem;font-size:0.85rem;color:var(--muted);text-align:center;">
-  <strong>Hover</strong> your mouse along the Archimedean line (right panel). Watch how <strong>many distinct tree leaves</strong> project to a <strong>single real number</strong>. This is the many-to-one Monna map — the mathematical basis for epistemic probability.
+<p style="text-align:center;padding:8px;font-size:14px;color:#5e5e5e;">
+  <strong>Hover</strong> along the line (right) to see <strong>many leaves</strong> light up for <strong>one point</strong> — the many-to-one Monna projection.
 </p>
 
-</div>
-
 <script>
-const p = 2, depth = 6, totalLeaves = Math.pow(p, depth);
-const leaves = [];
-for (let i = 0; i < totalLeaves; i++) {
-  let digits = [], temp = i;
-  for (let d = 0; d < depth; d++) { digits.unshift(temp % p); temp = Math.floor(temp / p); }
-  leaves.push(digits);
-}
-
-function monnaValue(digits) {
-  let val = 0;
-  for (let n = 0; n < depth; n++) val += digits[n] * Math.pow(p, -(n + 1));
-  return val;
-}
-const leafMonna = leaves.map(monnaValue);
-
-const tCanvas = document.getElementById('tree-canvas'), tCtx = tCanvas.getContext('2d');
-const lCanvas = document.getElementById('line-canvas'), lCtx = lCanvas.getContext('2d');
-let tW, tH, lW, lH;
-const leafX = [];
-
-function resize() {
-  tW = tCanvas.width = tCanvas.parentNode.clientWidth;
-  tH = tCanvas.height = tCanvas.parentNode.clientHeight;
-  lW = lCanvas.width = lCanvas.parentNode.clientWidth;
-  lH = lCanvas.height = lCanvas.parentNode.clientHeight;
-  drawTree(); drawLine();
-}
-window.addEventListener('resize', resize);
-
-function drawTree(hl = new Set()) {
-  tCtx.clearRect(0, 0, tW, tH); leafX.length = 0;
-  const m = { top: 50, bottom: 30, left: 15, right: 15 };
-  const spacing = (tW - m.left - m.right) / (totalLeaves - 1);
-  const yBot = tH - m.bottom, lH2 = (yBot - m.top) / depth;
-  for (let i = 0; i < totalLeaves; i++) leafX.push(m.left + i * spacing);
+(function() {
+  const P = 2, DEPTH = 6, N = Math.pow(P, DEPTH);
   
-  function branch(lv, s, e, px, py) {
-    if (lv === depth) return;
-    const y = m.top + lv * lH2;
-    const segs = []; let ss = s;
-    for (let i = s + 1; i <= e; i++) {
-      if (i === e || leaves[i][lv] !== leaves[ss][lv]) { segs.push({s:ss,e:i-1}); ss = i; }
-    }
-    segs.push({s:ss,e:e});
-    for (const seg of segs) {
-      const mx = m.left + ((seg.s + seg.e) / 2) * spacing;
-      if (px !== null) { tCtx.beginPath(); tCtx.moveTo(px, py); tCtx.lineTo(mx, y); tCtx.strokeStyle = '#ccc'; tCtx.lineWidth = 0.5; tCtx.stroke(); }
-      branch(lv + 1, seg.s, seg.e, mx, y);
-    }
+  // Build leaves: each leaf is an array of DEPTH digits [d0,...,d5]  
+  const leaves = [];
+  for (let i = 0; i < N; i++) {
+    const d = [];
+    let t = i;
+    for (let j = 0; j < DEPTH; j++) { d.unshift(t % P); t = Math.floor(t / P); }
+    leaves.push(d);
   }
-  branch(0, 0, totalLeaves - 1, null, null);
-  for (let i = 0; i < totalLeaves; i++) {
-    tCtx.beginPath(); tCtx.arc(leafX[i], yBot, 2.5, 0, Math.PI * 2);
-    tCtx.fillStyle = hl.has(i) ? '#e07030' : '#8899bb'; tCtx.fill();
+  
+  // Monna map: Φ(Σ aₙpⁿ) = Σ aₙp⁻ⁿ⁻¹
+  function monna(digits) {
+    let v = 0;
+    for (let n = 0; n < DEPTH; n++) v += digits[n] * Math.pow(P, -(n + 1));
+    return v;
   }
-}
+  const leafVals = leaves.map(monna);
 
-function drawLine(hx = null) {
-  lCtx.clearRect(0, 0, lW, lH);
-  const m = { left: 45, right: 25, top: 90, bot: 90 }, ly = lH / 2, sx = m.left, ex = lW - m.right;
-  lCtx.beginPath(); lCtx.moveTo(sx, ly); lCtx.lineTo(ex, ly); lCtx.strokeStyle = '#333'; lCtx.lineWidth = 1.2; lCtx.stroke();
-  lCtx.font = '11px sans-serif'; lCtx.fillStyle = '#888';
-  for (let f = 0; f <= 1; f += 0.1) {
-    const x = sx + f * (ex - sx);
-    lCtx.beginPath(); lCtx.moveTo(x, ly - 5); lCtx.lineTo(x, ly + 5); lCtx.strokeStyle = '#bbb'; lCtx.stroke();
-    lCtx.fillText(f.toFixed(1), x - 8, ly + 18);
-  }
-  if (hx !== null) {
-    const x = sx + hx * (ex - sx);
-    lCtx.beginPath(); lCtx.arc(x, ly, 7, 0, Math.PI * 2); lCtx.fillStyle = 'rgba(224,112,48,0.8)'; lCtx.fill();
-    lCtx.beginPath(); lCtx.setLineDash([3, 5]); lCtx.moveTo(x, ly - 40); lCtx.lineTo(x, ly + 40);
-    lCtx.strokeStyle = '#e07030'; lCtx.lineWidth = 1; lCtx.stroke(); lCtx.setLineDash([]);
-    document.getElementById('line-info').textContent = `≈ ${hx.toFixed(3)} — ${leafMonna.filter(v => Math.abs(v-hx)<0.005).length} leaves`;
-  }
-}
+  const tc = document.getElementById('tree-canvas'), tctx = tc.getContext('2d');
+  const lc = document.getElementById('line-canvas'), lctx = lc.getContext('2d');
+  const treeInfo = document.getElementById('tree-info');
+  const lineInfo = document.getElementById('line-info');
 
-lCanvas.addEventListener('mousemove', e => {
-  const rect = lCanvas.getBoundingClientRect();
-  const mx = (e.clientX - rect.left) * (lW / rect.width);
-  const sx = 45, ex = lW - 25;
-  if (mx < sx || mx > ex) { drawTree(new Set()); drawLine(null); return; }
-  const mv = Math.min(1, Math.max(0, (mx - sx) / (ex - sx)));
-  const lit = new Set();
-  leafMonna.forEach((v, i) => { if (Math.abs(v - mv) < 0.005) lit.add(i); });
-  drawTree(lit); drawLine(mv);
-});
-lCanvas.addEventListener('mouseleave', () => { drawTree(new Set()); drawLine(null); });
-resize();
+  let tw, th, lw, lh;
+  let hlSet = new Set(); // which leaves are lit
+
+  function size() {
+    const tp = document.getElementById('tree-panel');
+    const lp = document.getElementById('line-panel');
+    tw = tc.width = tp.clientWidth;
+    th = tc.height = tp.clientHeight;
+    lw = lc.width = lp.clientWidth;
+    lh = lc.height = lp.clientHeight;
+    draw();
+  }
+
+  function draw() {
+    // ── TREE ──
+    tctx.clearRect(0, 0, tw, th);
+    const mx = 20, my = 20, bx = tw - 20, by = th - 30;
+    if (N > 1) {
+      const spacing = (bx - mx) / (N - 1);
+      const lvlH = (by - my) / DEPTH;
+      // Recursive branch drawing
+      function branch(lv, s, e, px, py) {
+        if (lv >= DEPTH) return;
+        const y = my + lv * lvlH;
+        const segs = [];
+        let ss = s;
+        for (let i = s + 1; i <= e; i++) {
+          if (i === e || leaves[i][lv] !== leaves[ss][lv]) { segs.push({s:ss,e:i-1}); ss = i; }
+        }
+        segs.push({s:ss,e:e});
+        for (const seg of segs) {
+          const mx2 = mx + ((seg.s + seg.e) / 2) * spacing;
+          if (px !== null) { tctx.beginPath(); tctx.moveTo(px, py); tctx.lineTo(mx2, y); tctx.strokeStyle = '#ccc'; tctx.lineWidth = 0.5; tctx.stroke(); }
+          branch(lv + 1, seg.s, seg.e, mx2, y);
+        }
+      }
+      branch(0, 0, N - 1, null, null);
+      // Draw leaf dots
+      for (let i = 0; i < N; i++) {
+        const x = mx + i * spacing;
+        tctx.beginPath();
+        tctx.arc(x, by, 3, 0, Math.PI * 2);
+        tctx.fillStyle = hlSet.has(i) ? '#e07030' : '#88aacc';
+        tctx.fill();
+      }
+    }
+    treeInfo.textContent = `${N} leaves (p=${P}, depth=${DEPTH})`;
+
+    // ── LINE ──
+    lctx.clearRect(0, 0, lw, lh);
+    const lx = 40, rx = lw - 25, ly = lh / 2;
+    lctx.beginPath(); lctx.moveTo(lx, ly); lctx.lineTo(rx, ly);
+    lctx.strokeStyle = '#333'; lctx.lineWidth = 1.5; lctx.stroke();
+    lctx.font = '12px sans-serif'; lctx.fillStyle = '#888';
+    for (let f = 0; f <= 1; f += 0.1) {
+      const x = lx + f * (rx - lx);
+      lctx.beginPath(); lctx.moveTo(x, ly - 5); lctx.lineTo(x, ly + 5);
+      lctx.strokeStyle = '#bbb'; lctx.stroke();
+      lctx.fillText(f.toFixed(1), x - 8, ly + 18);
+    }
+    lineInfo.textContent = hlSet.size > 0 ? `${hlSet.size} leaves lit` : 'Hover over the line';
+  }
+
+  // Hover handler
+  lc.addEventListener('mousemove', function(e) {
+    const rect = lc.getBoundingClientRect();
+    const sx = 40, ex = lw - 25;
+    const mx2 = (e.clientX - rect.left) * (lw / rect.width);
+    if (mx2 < sx || mx2 > ex) { hlSet = new Set(); draw(); return; }
+    const t = (mx2 - sx) / (ex - sx);
+    const eps = 0.015;
+    hlSet = new Set();
+    leafVals.forEach(function(v, i) { if (Math.abs(v - t) < eps) hlSet.add(i); });
+    draw();
+  });
+  lc.addEventListener('mouseleave', function() { hlSet = new Set(); draw(); });
+
+  // Init: wait for layout then size
+  window.addEventListener('load', size);
+  window.addEventListener('resize', size);
+  // Fallback: try sizing after a short delay
+  setTimeout(size, 100);
+})();
 </script>
 </body>
 </html>

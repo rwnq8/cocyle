@@ -142,11 +142,11 @@
   });
   lc.addEventListener('mouseleave', function() { hlSet = new Set(); draw(); });
 
-  // Init: wait for layout then size
+  // Init: multiple fallbacks to ensure canvas sizes
+  size(); // try immediately
   window.addEventListener('load', size);
   window.addEventListener('resize', size);
-  // Fallback: try sizing after a short delay
-  setTimeout(size, 100);
+  setTimeout(function() { requestAnimationFrame(function() { size(); }); }, 50);
 })();
 </script>
 </body>

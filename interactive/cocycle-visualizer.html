@@ -186,9 +186,8 @@
   document.getElementById('btn-reset').addEventListener('click', reset);
 
   function size() { canvas.width = canvas.clientWidth; canvas.height = Math.max(400, canvas.clientWidth * 0.55); draw(); }
-  window.addEventListener('load', size);
-  window.addEventListener('resize', size);
-  setTimeout(size, 100);
+  size(); window.addEventListener('load', size); window.addEventListener('resize', size);
+  setTimeout(function() { requestAnimationFrame(function() { size(); }); }, 50);
   reset();
 })();
 </script>
